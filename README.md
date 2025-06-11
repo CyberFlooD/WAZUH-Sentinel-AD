@@ -1,4 +1,4 @@
-# 🛡️ WAZUH Sentinel AD - Active Directory Ultimate rules for Wazuh
+# 🛡️ WAZUH-Sentinel-AD : Active Directory Ultimate rules for Wazuh
 
 <img src="./img/wazuh_sentinel_ad4.png"/>
 
