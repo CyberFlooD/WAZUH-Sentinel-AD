@@ -16,8 +16,25 @@ Ce dépôt contient un ensemble de règles Wazuh avancées, spécialement conçu
 - Dumping de credentials
 - Persistences GPO, scheduled tasks, services
 - DCSync, Mimikatz, Kerberoasting, Golden Ticket...
+---
+
+## Structure MITRE couverte
+
+| Tactic              | Techniques incluses                                        |
+|---------------------|-------------------------------------------------------------|
+| Credential Access   | `T1003`, `T1558`, `T1078`, `T1115`, `T1055`                |
+| Execution           | `T1059`, `T1140`, `T1218`, `T1543`                         |
+| Persistence         | `T1053`, `T1484`, `T1543`, `T1047`                         |
+| Discovery           | `T1069`, `T1087`, `T1482`                                  |
+| Lateral Movement    | `T1021`, `T1075`                                           |
+| Defense Evasion     | `T1070`, `T1107`, `T1055`                                  |
+| Exfiltration        | `T1560`, `T1071`                                           |
+| Privilege Escalation| `T1136`, `T1098`, `T1222`                                  |
+| Command and Control | `T1105`                                                    |
+| Impact              | `T1485`, `T1107`           
 
 ---
+
 
 ## Fonctionnalités principales
 
@@ -46,24 +63,6 @@ sudo systemctl restart wazuh-manager
 ```
 
 ---
-
-## Structure MITRE couverte
-
-| Tactic              | Techniques incluses                                        |
-|---------------------|-------------------------------------------------------------|
-| Credential Access   | `T1003`, `T1558`, `T1078`, `T1115`, `T1055`                |
-| Execution           | `T1059`, `T1140`, `T1218`, `T1543`                         |
-| Persistence         | `T1053`, `T1484`, `T1543`, `T1047`                         |
-| Discovery           | `T1069`, `T1087`, `T1482`                                  |
-| Lateral Movement    | `T1021`, `T1075`                                           |
-| Defense Evasion     | `T1070`, `T1107`, `T1055`                                  |
-| Exfiltration        | `T1560`, `T1071`                                           |
-| Privilege Escalation| `T1136`, `T1098`, `T1222`                                  |
-| Command and Control | `T1105`                                                    |
-| Impact              | `T1485`, `T1107`           
-
----
-
 
 ## 📄 Licence
 
