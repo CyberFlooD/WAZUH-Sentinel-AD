@@ -2,9 +2,7 @@
 
 ![Wazuh](https://img.shields.io/badge/Wazuh-Compatible-blue) ![MITRE ATT&CK](https://img.shields.io/badge/MITRE-ATT%26CK-red) ![License](https://img.shields.io/badge/license-MIT-green)
 
-> Le pack ultime de détection Active Directory pour Wazuh. Inspiré des techniques offensives réelles, construit pour la défense intelligente.
-
----
+<img src="./img/wazuh_sentinel_ad4.png"/>
 
 ## Description
 
