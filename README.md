@@ -71,7 +71,6 @@ Ce projet est sous licence MIT. Faites-vous plaisir, modifiez, partagez et créd
 ## 🙋 Auteur
 
 **Florian Dudaev (aka Dudix)**  
-🔗 [https://github.com/CyberFlooD](https://github.com/CyberFlooD)  
-📫 contact [at] dudix-consulting.fr
+🔗 [https://github.com/CyberFlooD](https://github.com/CyberFlooD)
 
 ---
