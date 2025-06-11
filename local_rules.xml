@@ -1,0 +1,598 @@
+<!--
+╔════════════════════════════════════════════════════════════════════════════════╗
+║                                                                                ║
+║             WAZUH-SENTINEL-AD : ULTIMATE RULES                                 ║
+║       The Ultimate AD Detection Pack for Wazuh by Dudix                        ║
+║                                                                                ║
+║      Auteur       : Florian Dudaev (alias Dudix)                               ║
+║      Version      : 1.0 - 05/2025                                              ║
+║      Description  :                                                            ║
+║        Le template ultime pour traquer les vilains dans ton Active Directory   ║
+║        Basé sur MITRE ATT&CK et boosté par des règles Sigma-like               ║
+║                                                                                ║
+║     Objectif :                                                                 ║
+║       Une structure claire inspirée de MITRE ATT&CK                            ║
+║                                                                                ║
+║    Licence :                                                                   ║
+║      MIT - Faites-vous plaisir, modifiez, partagez, créditez!                  ║
+║                                                                                ║
+║    Contact : contact[at]dudix-consulting.fr                                    ║
+║    Projet   : github.com/CyberFlooD/                                           ║
+╚════════════════════════════════════════════════════════════════════════════════╝
+-->
+
+<group name="windows,ad,ultimate_ruleset">
+
+  <!-- R1 - LOGON NETWORK (4624) -->
+  <rule id="410001" level="5">
+    <field name="win.system.eventID">^4624$</field>
+    <field name="win.eventdata.LogonType">^3$</field>
+    <field name="win.eventdata.SubjectUserName" type="pcre2" negate="yes">(SYSTEM|ANONYMOUS LOGON|NT AUTHORITY|\$)</field>
+    <description>Connexion réseau suspecte (LogonType=3)</description>
+    <group>windows,auth_success</group>
+    <options>no_full_log</options>
+  </rule>
+
+  <!-- R2 - DS ACCESS WITH REPLICATION GUIDS (4662) -->
+  <rule id="410002" level="7">
+    <field name="win.system.eventID">^4662$</field>
+    <field name="win.eventdata.Properties" type="pcre2">{1131f6aa-9c07-11d1-f79f-00c04fc2dcd2}|{19195a5b-6da0-11d0-afd3-00c04fd930c9}</field>
+    <field name="win.eventdata.SubjectUserName" type="pcre2" negate="yes">(SYSTEM|\$)</field>
+    <description>Accès Active Directory avec GUID de réplication (soupçon DCSync)</description>
+    <group>windows,directory_access</group>
+    <options>no_full_log</options>
+  </rule>
+
+  <!-- R3 - Corrélation:DCSync (4624 + 4662) -->
+  <rule id="410003" level="12">
+    <if_matched_sid>410001</if_matched_sid>
+    <if_matched_sid>410002</if_matched_sid>
+    <description>Corrélation DCSync Active Directory (logon + DS access)</description>
+    <group>windows,correlation,dcsync</group>
+    <mitre>
+      <id>T1003.006</id>
+    </mitre>
+    <options>no_full_log</options>
+  </rule>
+
+  <!-- R4 - Corrélation:Golden Ticket (4624 with null GUID) -->
+  <rule id="410004" level="12">
+    <field name="win.system.eventID">^4624$</field>
+    <field name="win.eventdata.LogonGuid">{00000000-0000-0000-0000-000000000000}</field>
+    <field name="win.eventdata.LogonType">^3$</field>
+    <description>Connexion avec Golden Ticket suspect (Logon GUID nul)</description>
+    <group>windows,correlation,golden_ticket</group>
+    <mitre>
+      <id>T1558.001</id>
+    </mitre>
+    <options>no_full_log</options>
+  </rule>
+
+  <!-- R5 - Corrélation:Kerberoasting (4769 with specific options) -->
+  <rule id="410005" level="12">
+    <field name="win.system.eventID">^4769$</field>
+    <field name="win.eventdata.TicketOptions">0x40810000</field>
+    <field name="win.eventdata.TicketEncryptionType">0x17</field>
+    <description>Requête Kerberos suspecte (Kerberoasting possible)</description>
+    <group>windows,correlation,kerberoasting</group>
+    <mitre>
+      <id>T1558.003</id>
+    </mitre>
+    <options>no_full_log</options>
+  </rule>
+
+  <!-- R6 - Corrélation:Mimikatz via PowerShell encoded or sekurlsa usage -->
+  <rule id="410006" level="12">
+    <field name="win.system.eventID">^4688$</field>
+    <field name="win.eventdata.CommandLine" type="pcre2">(Invoke-Mimikatz|sekurlsa::|lsadump::|mimikatz.exe|powershell.*-enc|FromBase64String)</field>
+    <description>Exécution suspecte liée à Mimikatz ou PowerShell obfusqué</description>
+    <group>windows,correlation,mimikatz</group>
+    <mitre>
+      <id>T1003.001</id>
+    </mitre>
+    <options>no_full_log</options>
+  </rule>
+
+  <!-- R7 - Corrélation:PsExec lateral movement -->
+  <rule id="410007" level="12">
+    <if_sid>410001</if_sid>
+    <field name="win.system.eventID">^4688$</field>
+    <field name="win.eventdata.Image" type="pcre2">psexec.*\.exe</field>
+    <description>Mouvement latéral suspect via PsExec</description>
+    <group>windows,correlation,lateral_movement</group>
+    <mitre>
+      <id>T1021.002</id>
+    </mitre>
+    <options>no_full_log</options>
+  </rule>
+
+  <!-- R8 - Corrélation:SharpHound reconnaissance -->
+  <rule id="410008" level="12">
+    <field name="win.system.eventID">^4688$</field>
+    <field name="win.eventdata.Image" type="pcre2">SharpHound.*\.exe</field>
+    <description>Reconnaissance Active Directory avec SharpHound</description>
+    <group>windows,correlation,discovery</group>
+    <mitre>
+      <id>T1482</id>
+    </mitre>
+    <options>no_full_log</options>
+  </rule>
+
+  <!-- R9 - Corrélation:secretsdump.py execution -->
+  <rule id="410009" level="12">
+    <field name="win.system.eventID">^11$</field>
+    <field name="win.eventdata.CommandLine" type="pcre2">secretsdump\.py</field>
+    <description>Exécution suspecte de secretsdump.py (Impacket)</description>
+    <group>windows,correlation,credential_access</group>
+    <mitre>
+      <id>T1003</id>
+    </mitre>
+    <options>no_full_log</options>
+  </rule>
+
+  <!-- R10 - Corrélation:secretsdump.py execution -->
+  <rule id="410010" level="12">
+    <field name="win.system.eventID">^1$</field>
+    <field name="win.eventdata.CommandLine" type="pcre2">secretsdump\.py</field>
+    <description>Exécution suspecte de secretsdump.py (Impacket)</description>
+    <group>windows,correlation,credential_access</group>
+    <mitre>
+      <id>T1003</id>
+    </mitre>
+    <options>no_full_log</options>
+  </rule>
+
+  <!-- R11 - Corrélation:création de compte + ajout à un groupe admin -->
+    <rule id="411011" level="12">
+    <if_matched_sid>410001</if_matched_sid>
+    <field name="win.system.eventID">^4720$</field>
+    <description>Création ou élévation de privilège d'un compte (AdminGroup + UserAdd) (eventID 4720)</description>
+    <group>windows,correlation,privilege_escalation</group>
+    <mitre>
+      <id>T1136.001</id>
+      <id>T1078</id>
+    </mitre>
+    <options>no_full_log</options>
+  </rule>
+  <rule id="411012" level="12">
+    <if_matched_sid>410001</if_matched_sid>
+    <field name="win.system.eventID">^4728$</field>
+    <description>Création ou élévation de privilège d'un compte (AdminGroup + UserAdd) (eventID 4728)</description>
+    <group>windows,correlation,privilege_escalation</group>
+    <mitre>
+      <id>T1136.001</id>
+      <id>T1078</id>
+    </mitre>
+    <options>no_full_log</options>
+  </rule>
+  <rule id="411013" level="12">
+    <if_matched_sid>410001</if_matched_sid>
+    <field name="win.system.eventID">^4732$</field>
+    <description>Création ou élévation de privilège d'un compte (AdminGroup + UserAdd) (eventID 4732)</description>
+    <group>windows,correlation,privilege_escalation</group>
+    <mitre>
+      <id>T1136.001</id>
+      <id>T1078</id>
+    </mitre>
+    <options>no_full_log</options>
+  </rule>
+  <rule id="411014" level="12">
+    <if_matched_sid>410001</if_matched_sid>
+    <field name="win.system.eventID">^4756$</field>
+    <description>Création ou élévation de privilège d'un compte (AdminGroup + UserAdd) (eventID 4756)</description>
+    <group>windows,correlation,privilege_escalation</group>
+    <mitre>
+      <id>T1136.001</id>
+      <id>T1078</id>
+    </mitre>
+    <options>no_full_log</options>
+  </rule>
+
+  <!-- R12 - Corrélation:tâche planifiée ou service suspect après logon -->
+  <rule id="410012" level="12">
+    <if_sid>410001</if_sid>
+    <field name="win.system.eventID">^4688$</field>
+    <field name="win.eventdata.CommandLine" type="pcre2">(schtasks\.exe|sc\.exe.*create)</field>
+    <description>Persistance suspecte via tâche planifiée ou service (schtasks / sc)</description>
+    <group>windows,correlation,persistence</group>
+    <mitre>
+      <id>T1053.005</id>
+      <id>T1543.003</id>
+    </mitre>
+    <options>no_full_log</options>
+  </rule>
+
+  <!-- R13 - Corrélation:rundll32/mshta post-auth -->
+  <rule id="410013" level="12">
+    <if_sid>410001</if_sid>
+    <field name="win.system.eventID">^4688$</field>
+    <field name="win.eventdata.Image" type="pcre2">(rundll32\.exe|mshta\.exe)</field>
+    <description>Exécution potentiellement malveillante via rundll32 ou mshta après logon</description>
+    <group>windows,correlation,execution_bypass</group>
+    <mitre>
+      <id>T1218</id>
+    </mitre>
+    <options>no_full_log</options>
+  </rule>
+
+  <!-- R14 - Corrélation:utilisation de net user / net group -->
+  <rule id="410014" level="10">
+    <field name="win.system.eventID">^4688$</field>
+    <field name="win.eventdata.CommandLine" type="pcre2">net\s+(user|group|localgroup)</field>
+    <description>Usage suspect de commandes net user/group</description>
+    <group>windows,correlation,account_discovery</group>
+    <mitre>
+      <id>T1087</id>
+    </mitre>
+    <options>no_full_log</options>
+  </rule>
+
+  <!-- R15 - Corrélation:Accès NTDS.dit ou lsass.dmp -->
+  <rule id="410015" level="12">
+    <field name="win.system.eventID">^11$</field>
+    <field name="win.eventdata.TargetFilename" type="pcre2">(ntds\.dit|lsass\.dmp)</field>
+    <description>Tentative d'accès à NTDS.dit ou lsass.dmp</description>
+    <group>windows,correlation,credential_access</group>
+    <mitre>
+      <id>T1003</id>
+    </mitre>
+    <if_sid>61600</if_sid>
+    <options>no_full_log</options>
+  </rule>
+  <!-- R16 - Corrélation:Reconnaissance RDP/SMB -->
+  <rule id="410016" level="8">
+    <field name="win.system.eventID">^5140$</field>
+    <field name="win.system.eventID">^5145$</field>
+    <field name="win.eventdata.ShareName" type="pcre2">(\\\\ADMIN\$|\\\\C\$)</field>
+    <description>Accès à un partage administratif détecté (SMB, RDP, reconnaissance)</description>
+    <group>windows,correlation,reconnaissance</group>
+    <mitre>
+      <id>T1135</id>
+    </mitre>
+    <options>no_full_log</options>
+  </rule>
+  <!-- R17 - Corrélation:Tâche planifiée via PowerShell -->
+  <rule id="410017" level="12">
+    <field name="win.system.eventID">^4688$</field>
+    <field name="win.eventdata.CommandLine" type="pcre2">Register-ScheduledTask|New-ScheduledTaskAction</field>
+    <description>Persistance via une tâche planifiée PowerShell</description>
+    <group>windows,correlation,persistence</group>
+    <mitre>
+      <id>T1053.005</id>
+    </mitre>
+    <options>no_full_log</options>
+  </rule>
+  <!-- R18 - Corrélation:Exfiltration (création de .zip ou transfert anormal) -->
+  <rule id="410018" level="12">
+    <field name="win.system.eventID">^11$</field>
+    <field name="win.eventdata.TargetFilename" type="pcre2">.*\.zip$</field>
+    <description>Création de fichier zip suspect (potentielle exfiltration)</description>
+    <group>windows,correlation,exfiltration</group>
+    <mitre>
+      <id>T1560.001</id>
+    </mitre>
+    <if_sid>61600</if_sid>
+    <options>no_full_log</options>
+  </rule>
+  <!-- R19 - Corrélation:PowerShell avec IEX + DownloadString -->
+  <rule id="410019" level="12">
+    <field name="win.system.eventID">^4688$</field>
+    <field name="win.eventdata.CommandLine" type="pcre2">(IEX|Invoke-Expression).*(DownloadString)</field>
+    <description>Détection de payload PowerShell à distance (IEX + DownloadString)</description>
+    <group>windows,correlation,execution</group>
+    <mitre>
+      <id>T1059.001</id>
+    </mitre>
+    <options>no_full_log</options>
+  </rule>
+
+  <!-- R20 - Corrélation:MFA bypass ou compte dormant utilisé -->
+  <rule id="410020" level="12">
+    <field name="win.system.eventID">^4624$</field>
+    <field name="win.eventdata.SubjectUserName" type="pcre2">admin|backup|itadmin|svc.*</field>
+    <description>🚨 Connexion inhabituelle à partir de comptes sensibles ou dormants (MFA bypass possible)</description>
+    <group>windows,correlation,account_abuse</group>
+    <mitre>
+      <id>T1078</id>
+      <id>T1556.004</id>
+    </mitre>
+    <options>no_full_log</options>
+  </rule>
+
+  <!-- R21 - Reconnaissance : whoami, nltest, dsquery, adfind -->
+  <rule id="410021" level="10">
+    <field name="win.system.eventID">^4688$</field>
+    <field name="win.eventdata.CommandLine" type="pcre2">(whoami|nltest|dsquery|adfind)</field>
+    <description>Reconnaissance Active Directory via commandes whoami, nltest, dsquery, adfind</description>
+    <group>windows,correlation,discovery</group>
+    <mitre>
+      <id>T1087</id>
+      <id>T1069.002</id>
+    </mitre>
+    <options>no_full_log</options>
+  </rule>
+
+  <!-- R22 - Utilisation suspecte de certutil pour download ou decode -->
+  <rule id="410022" level="12">
+    <field name="win.system.eventID">^4688$</field>
+    <field name="win.eventdata.CommandLine" type="pcre2">certutil.*(-decode|-urlcache|-f|-split)</field>
+    <description>Utilisation de certutil pour décoder ou télécharger un fichier</description>
+    <group>windows,correlation,download,execution</group>
+    <mitre>
+      <id>T1140</id>
+      <id>T1105</id>
+    </mitre>
+    <options>no_full_log</options>
+  </rule>
+
+  <!-- R23 - Reconnaissance ou persistance via WMI / WinRM -->
+  <rule id="410023" level="12">
+    <field name="win.system.eventID">^4688$</field>
+    <field name="win.eventdata.CommandLine" type="pcre2">(wmic|winrm|Get-WmiObject|Invoke-WmiMethod|Invoke-Command)</field>
+    <description>Reconnaissance ou persistance via WMI / WinRM</description>
+    <group>windows,correlation,remote_exec</group>
+    <mitre>
+      <id>T1047</id>
+    </mitre>
+    <options>no_full_log</options>
+  </rule>
+
+  <!-- R24 - Tuning : exclusion pour binaires signés Windows -->
+  <rule id="410024" level="0">
+    <if_sid>400001</if_sid>
+    <field name="win.eventdata.Image" type="pcre2">(C:\\Windows\\System32\\.*|C:\\Program Files\\.*)</field>
+    <description>Exclusion des exécutables signés dans les répertoires standards Windows</description>
+    <options>no_full_log</options>
+  </rule>
+
+  <!-- R25 - Détournement de GPO pour persistance -->
+  <rule id="410025" level="12">
+    <field name="win.system.eventID">^4688$</field>
+    <field name="win.eventdata.CommandLine" type="pcre2">(gpupdate|secedit)</field>
+    <description>Persistance potentielle via mise à jour de stratégie de groupe</description>
+    <group>windows,correlation,persistence</group>
+    <mitre>
+      <id>T1484.001</id>
+    </mitre>
+    <options>no_full_log</options>
+  </rule>
+
+  <!-- R26 - Powerview Add-DomainObjectAcl DCSync AD Extend Right -->
+  <rule id="410026" level="12">
+    <field name="win.system.eventID">^5136$</field>
+    <field name="win.eventdata.AttributeLDAPDisplayName">^ntSecurityDescriptor$</field>
+    <field name="win.eventdata.AttributeValue">1131f6ad-9c07-11d1-f79f-00c04fc2dcd2|1131f6aa-9c07-11d1-f79f-00c04fc2dcd2|89e95b76-444d-4c62-991a-0facbeda640c</field>
+    <description>Modification suspecte des ACL AD pour DCSync (Add-DomainObjectAcl)</description>
+    <group>windows,correlation,privilege_escalation</group>
+    <mitre>
+      <id>T1098</id>
+    </mitre>
+    <options>no_full_log</options>
+  </rule>
+
+  <!-- R27 - WriteDACL Active Directory sur ObjectType domainDNS -->
+  <rule id="410027" level="12">
+    <field name="win.system.eventID">^4662$</field>
+    <field name="win.eventdata.ObjectServer">^DS$</field>
+    <field name="win.eventdata.AccessMask">^0x40000$</field>
+    <field name="win.eventdata.ObjectType">19195a5b-6da0-11d0-afd3-00c04fd930c9|domainDNS</field>
+    <description>Modification DACL AD (AccessMask 0x40000 sur domainDNS)</description>
+    <group>windows,correlation,privilege_escalation</group>
+    <mitre>
+      <id>T1222</id>
+    </mitre>
+    <options>no_full_log</options>
+  </rule>
+
+  <!-- R28 - DCSync depuis un compte utilisateur (hors machine) -->
+  <rule id="410028" level="12">
+    <field name="win.system.eventID">^4662$</field>
+    <field name="win.eventdata.AccessMask">^0x100$</field>
+    <field name="win.eventdata.Properties">1131f6aa-9c07-11d1-f79f-00c04fc2dcd2|1131f6ad-9c07-11d1-f79f-00c04fc2dcd2|89e95b76-444d-4c62-991a-0facbeda640c</field>
+    <field name="win.eventdata.SubjectUserName" type="negate">\$$|^MSOL_</field>
+    <description>DCSync suspect effectué par un utilisateur non machine</description>
+    <group>windows,correlation,credential_access</group>
+    <mitre>
+      <id>T1003</id>
+    </mitre>
+    <options>no_full_log</options>
+  </rule>
+
+  <!-- R29 - Tâche planifiée avec nom suspect (Chafer) -->
+  <rule id="410029" level="10">
+    <field name="win.system.eventID">^4698$</field>
+    <field name="win.eventdata.TaskName" type="pcre2">^SC Scheduled Scan$|^UpdatMachine$</field>
+    <description>Tâche planifiée avec nom suspect (SC Scheduled Scan / UpdatMachine)</description>
+    <group>windows,correlation,persistence</group>
+    <mitre>
+      <id>T1112</id>
+    </mitre>
+    <options>no_full_log</options>
+  </rule>
+
+  <!-- R30 - Création d’un service suspect lié à Turla -->
+  <rule id="410030" level="12">
+    <field name="win.system.eventID">^7045$</field>
+    <field name="win.eventdata.ServiceName">^WerFaultSvc$</field>
+    <description>Création de service suspect WerFaultSvc (possiblement Turla)</description>
+    <group>windows,correlation,persistence</group>
+    <mitre>
+      <id>T1543</id>
+    </mitre>
+    <options>no_full_log</options>
+  </rule>
+
+  <!-- R31 - Audit CVE Event Provider -->
+  <rule id="410031" level="10">
+    <field name="win.eventdata.ProviderName">^Microsoft-Windows-Audit-CVE$</field>
+    <description>Détection d’un évènement de type Audit-CVE (exploit vulnérabilité)</description>
+    <group>windows,correlation,exploit_attempt</group>
+    <mitre>
+      <id>T1203</id>
+    </mitre>
+    <options>no_full_log</options>
+  </rule>
+
+  <!-- R32 - Snapshot des sessions utilisateur actives (LogonSession / UserName) -->
+  <rule id="410032" level="3">
+    <decoded_as>json</decoded_as>
+    <field name="LogonSession">\.+</field>
+    <field name="UserName">\.+</field>
+    <description>Windows Logon Sessions - Snapshot de sessions actives</description>
+    <mitre>
+      <id>T1078</id>
+    </mitre>
+    <options>no_full_log</options>
+    <group>windows_logonsessions,correlation</group>
+  </rule>
+
+  <!-- R33 - Corrélation : LogonSession anormale + exécution suspecte -->
+  <rule id="410033" level="12">
+    <if_matched_sid>410030,410006</if_matched_sid>
+    <description>Corrélation : Session interactive + possible exécution de Mimikatz/payload PowerShell</description>
+    <group>windows,correlation,execution,session_hijack</group>
+    <mitre>
+      <id>T1078</id>
+      <id>T1059.001</id>
+      <id>T1003.001</id>
+    </mitre>
+    <options>no_full_log</options>
+  </rule>
+
+  <!-- R34 - Surveillance de WMI : WmiEventFilter -->
+  <rule id="410034" level="10">
+    <field name="win.system.eventID">^19$</field>
+    <description>Surveillance WMI - Création d’un filtre WMI (WmiEventFilter)</description>
+    <group>windows,correlation,persistence</group>
+    <mitre>
+      <id>T1047</id>
+    </mitre>
+    <if_sid>61600</if_sid>
+    <options>no_full_log</options>
+  </rule>
+
+  <!-- R35 - Surveillance de WMI : WmiEventConsumer -->
+  <rule id="410035" level="10">
+    <field name="win.system.eventID">^20$</field>
+    <description>Surveillance WMI - Création d’un consommateur WMI (WmiEventConsumer)</description>
+    <group>windows,correlation,persistence</group>
+    <mitre>
+      <id>T1047</id>
+    </mitre>
+    <if_sid>61600</if_sid>
+    <options>no_full_log</options>
+  </rule>
+
+  <!-- R36 - Surveillance de WMI : Lien entre filtre et consommateur (WmiEventConsumerToFilter) -->
+  <rule id="410036" level="10">
+    <field name="win.system.eventID">^21$</field>
+    <description>Surveillance WMI - Liaison filtre-consommateur (WmiEventConsumerToFilter)</description>
+    <group>windows,correlation,persistence</group>
+    <mitre>
+      <id>T1047</id>
+    </mitre>
+    <if_sid>61600</if_sid>
+    <options>no_full_log</options>
+  </rule>
+
+  <!-- R37 - Requête DNS sortante par un processus (Sysmon Event 22) -->
+  <rule id="410037" level="10">
+    <field name="win.system.eventID">^22$</field>
+    <description>Requête DNS potentiellement suspecte effectuée par un processus</description>
+    <group>windows,correlation,exfiltration</group>
+    <mitre>
+      <id>T1071</id>
+    </mitre>
+    <if_sid>61600</if_sid>
+    <options>no_full_log</options>
+  </rule>
+
+  <!-- R38 - Communication via Pipe nommée (création) -->
+  <rule id="410038" level="8">
+    <field name="win.system.eventID">^17$</field>
+    <description>Création de pipe nommée détectée (IPC locale potentiellement utilisée par malware)</description>
+    <group>windows,correlation,ipc</group>
+    <if_sid>61600</if_sid>
+    <options>no_full_log</options>
+  </rule>
+
+  <!-- R39 - Communication via Pipe nommée (connexion) -->
+  <rule id="410039" level="8">
+    <field name="win.system.eventID">^18$</field>
+    <description>Connexion à une pipe nommée détectée (échange inter-processus suspect)</description>
+    <group>windows,correlation,ipc</group>
+    <if_sid>61600</if_sid>
+    <options>no_full_log</options>
+  </rule>
+
+  <!-- R40 - Modification ou suppression de fichiers par un processus (Sysmon Event 23) -->
+  <rule id="410040" level="10">
+    <field name="win.system.eventID">^23$</field>
+    <description>Suppression de fichiers détectée (potentiel nettoyage de traces ou sabotage)</description>
+    <group>windows,correlation,impact</group>
+    <mitre>
+      <id>T1107</id>
+      <id>T1485</id>
+    </mitre>
+    <if_sid>61600</if_sid>
+    <options>no_full_log</options>
+  </rule>
+
+  <!-- R41 - Contenu du presse-papiers accédé par un processus (Sysmon Event 24) -->
+  <rule id="410041" level="10">
+    <field name="win.system.eventID">^24$</field>
+    <description>Accès au presse-papiers détecté - activité d'exfiltration potentielle</description>
+    <group>windows,correlation,collection</group>
+    <mitre>
+      <id>T1115</id>
+    </mitre>
+    <if_sid>61600</if_sid>
+    <options>no_full_log</options>
+  </rule>
+
+  <!-- R42 - Manipulation d’image mémoire de processus (Sysmon Event 25) -->
+  <rule id="410042" level="12">
+    <field name="win.system.eventID">^25$</field>
+    <description>Altération de processus détectée - injection ou hollowing possible</description>
+    <group>windows,correlation,evasion</group>
+    <mitre>
+      <id>T1055</id>
+    </mitre>
+    <if_sid>61600</if_sid>
+    <options>no_full_log</options>
+  </rule>
+
+  <!-- R43 - Vidage des journaux de sécurité (event log cleared) -->
+  <rule id="410043" level="12">
+    <field name="win.system.channel">^Security$</field>
+    <description>Vidage des journaux de sécurité détecté</description>
+    <group>windows,correlation,anti_forensics</group>
+    <mitre>
+      <id>T1070</id>
+      <id>T1107</id>
+    </mitre>
+    <options>no_full_log</options>
+  </rule>
+
+  <!-- R44 - Tentative de Pass-the-Hash (logon type 9 + seclogo) -->
+  <rule id="410044" level="12">
+    <field name="win.eventdata.logonType">^9$</field>
+    <field name="win.eventdata.logonProcessName">^seclogo$</field>
+    <field name="win.eventdata.authenticationPackageName">^Negotiate$</field>
+    <description>Authentification suspecte détectée (Pass-the-Hash possible)</description>
+    <group>windows,correlation,credential_access</group>
+    <mitre>
+      <id>T1078</id>
+    </mitre>
+    <options>no_full_log</options>
+  </rule>
+
+  <!-- R45 - Chargement d’un driver noyau (Sysmon Event 6) -->
+  <rule id="410045" level="8">
+    <field name="win.system.eventID">^6$</field>
+    <description>Chargement d’un driver noyau détecté (potentiel rootkit)</description>
+    <group>windows,correlation,evasion</group>
+    <if_sid>61600</if_sid>
+    <options>no_full_log</options>
+  </rule>
+</group>
