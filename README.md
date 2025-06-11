@@ -1,8 +1,8 @@
 # 🛡️ WAZUH Sentinel AD - Active Directory Ultimate rules for Wazuh
 
-![Wazuh](https://img.shields.io/badge/Wazuh-Compatible-blue) ![MITRE ATT&CK](https://img.shields.io/badge/MITRE-ATT%26CK-red) ![License](https://img.shields.io/badge/license-MIT-green)
-
 <img src="./img/wazuh_sentinel_ad4.png"/>
+
+![Wazuh](https://img.shields.io/badge/Wazuh-Compatible-blue) ![MITRE ATT&CK](https://img.shields.io/badge/MITRE-ATT%26CK-red) ![License](https://img.shields.io/badge/license-MIT-green)
 
 ## Description
 
