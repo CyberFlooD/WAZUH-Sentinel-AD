@@ -337,15 +337,7 @@
     <options>no_full_log</options>
   </rule>
 
-  <!-- R24 - Tuning : exclusion pour binaires signés Windows -->
-  <rule id="410024" level="0">
-    <if_sid>400001</if_sid>
-    <field name="win.eventdata.Image" type="pcre2">(C:\\Windows\\System32\\.*|C:\\Program Files\\.*)</field>
-    <description>Exclusion des exécutables signés dans les répertoires standards Windows</description>
-    <options>no_full_log</options>
-  </rule>
-
-  <!-- R25 - Détournement de GPO pour persistance -->
+  <!-- R24 - Détournement de GPO pour persistance -->
   <rule id="410025" level="12">
     <field name="win.system.eventID">^4688$</field>
     <field name="win.eventdata.CommandLine" type="pcre2">(gpupdate|secedit)</field>
@@ -357,7 +349,7 @@
     <options>no_full_log</options>
   </rule>
 
-  <!-- R26 - Powerview Add-DomainObjectAcl DCSync AD Extend Right -->
+  <!-- R25 - Powerview Add-DomainObjectAcl DCSync AD Extend Right -->
   <rule id="410026" level="12">
     <field name="win.system.eventID">^5136$</field>
     <field name="win.eventdata.AttributeLDAPDisplayName">^ntSecurityDescriptor$</field>
@@ -370,7 +362,7 @@
     <options>no_full_log</options>
   </rule>
 
-  <!-- R27 - WriteDACL Active Directory sur ObjectType domainDNS -->
+  <!-- R26 - WriteDACL Active Directory sur ObjectType domainDNS -->
   <rule id="410027" level="12">
     <field name="win.system.eventID">^4662$</field>
     <field name="win.eventdata.ObjectServer">^DS$</field>
@@ -384,12 +376,12 @@
     <options>no_full_log</options>
   </rule>
 
-  <!-- R28 - DCSync depuis un compte utilisateur (hors machine) -->
+  <!-- R27 - DCSync depuis un compte utilisateur (hors machine) -->
   <rule id="410028" level="12">
     <field name="win.system.eventID">^4662$</field>
     <field name="win.eventdata.AccessMask">^0x100$</field>
     <field name="win.eventdata.Properties">1131f6aa-9c07-11d1-f79f-00c04fc2dcd2|1131f6ad-9c07-11d1-f79f-00c04fc2dcd2|89e95b76-444d-4c62-991a-0facbeda640c</field>
-    <field name="win.eventdata.SubjectUserName" type="negate">\$$|^MSOL_</field>
+    <field name="win.eventdata.SubjectUserName" negate="yes">\$$|^MSOL_</field>
     <description>DCSync suspect effectué par un utilisateur non machine</description>
     <group>windows,correlation,credential_access</group>
     <mitre>
@@ -398,7 +390,7 @@
     <options>no_full_log</options>
   </rule>
 
-  <!-- R29 - Tâche planifiée avec nom suspect (Chafer) -->
+  <!-- R28 - Tâche planifiée avec nom suspect (Chafer) -->
   <rule id="410029" level="10">
     <field name="win.system.eventID">^4698$</field>
     <field name="win.eventdata.TaskName" type="pcre2">^SC Scheduled Scan$|^UpdatMachine$</field>
@@ -410,7 +402,7 @@
     <options>no_full_log</options>
   </rule>
 
-  <!-- R30 - Création d’un service suspect lié à Turla -->
+  <!-- R29 - Création d’un service suspect lié à Turla -->
   <rule id="410030" level="12">
     <field name="win.system.eventID">^7045$</field>
     <field name="win.eventdata.ServiceName">^WerFaultSvc$</field>
@@ -422,7 +414,7 @@
     <options>no_full_log</options>
   </rule>
 
-  <!-- R31 - Audit CVE Event Provider -->
+  <!-- R30 - Audit CVE Event Provider -->
   <rule id="410031" level="10">
     <field name="win.eventdata.ProviderName">^Microsoft-Windows-Audit-CVE$</field>
     <description>Détection d’un évènement de type Audit-CVE (exploit vulnérabilité)</description>
@@ -433,7 +425,7 @@
     <options>no_full_log</options>
   </rule>
 
-  <!-- R32 - Snapshot des sessions utilisateur actives (LogonSession / UserName) -->
+  <!-- R31 - Snapshot des sessions utilisateur actives (LogonSession / UserName) -->
   <rule id="410032" level="3">
     <decoded_as>json</decoded_as>
     <field name="LogonSession">\.+</field>
@@ -446,9 +438,10 @@
     <group>windows_logonsessions,correlation</group>
   </rule>
 
-  <!-- R33 - Corrélation : LogonSession anormale + exécution suspecte -->
+  <!-- R32 - Corrélation : LogonSession anormale + exécution suspecte -->
   <rule id="410033" level="12">
-    <if_matched_sid>410030,410006</if_matched_sid>
+    <if_matched_sid>410030</if_matched_sid>
+    <if_matched_sid>410006</if_matched_sid>
     <description>Corrélation : Session interactive + possible exécution de Mimikatz/payload PowerShell</description>
     <group>windows,correlation,execution,session_hijack</group>
     <mitre>
@@ -459,7 +452,7 @@
     <options>no_full_log</options>
   </rule>
 
-  <!-- R34 - Surveillance de WMI : WmiEventFilter -->
+  <!-- R33 - Surveillance de WMI : WmiEventFilter -->
   <rule id="410034" level="10">
     <field name="win.system.eventID">^19$</field>
     <description>Surveillance WMI - Création d’un filtre WMI (WmiEventFilter)</description>
@@ -471,7 +464,7 @@
     <options>no_full_log</options>
   </rule>
 
-  <!-- R35 - Surveillance de WMI : WmiEventConsumer -->
+  <!-- R34 - Surveillance de WMI : WmiEventConsumer -->
   <rule id="410035" level="10">
     <field name="win.system.eventID">^20$</field>
     <description>Surveillance WMI - Création d’un consommateur WMI (WmiEventConsumer)</description>
@@ -483,7 +476,7 @@
     <options>no_full_log</options>
   </rule>
 
-  <!-- R36 - Surveillance de WMI : Lien entre filtre et consommateur (WmiEventConsumerToFilter) -->
+  <!-- R35 - Surveillance de WMI : Lien entre filtre et consommateur (WmiEventConsumerToFilter) -->
   <rule id="410036" level="10">
     <field name="win.system.eventID">^21$</field>
     <description>Surveillance WMI - Liaison filtre-consommateur (WmiEventConsumerToFilter)</description>
@@ -495,7 +488,7 @@
     <options>no_full_log</options>
   </rule>
 
-  <!-- R37 - Requête DNS sortante par un processus (Sysmon Event 22) -->
+  <!-- R36 - Requête DNS sortante par un processus (Sysmon Event 22) -->
   <rule id="410037" level="10">
     <field name="win.system.eventID">^22$</field>
     <description>Requête DNS potentiellement suspecte effectuée par un processus</description>
@@ -507,7 +500,7 @@
     <options>no_full_log</options>
   </rule>
 
-  <!-- R38 - Communication via Pipe nommée (création) -->
+  <!-- R37 - Communication via Pipe nommée (création) -->
   <rule id="410038" level="8">
     <field name="win.system.eventID">^17$</field>
     <description>Création de pipe nommée détectée (IPC locale potentiellement utilisée par malware)</description>
@@ -516,7 +509,7 @@
     <options>no_full_log</options>
   </rule>
 
-  <!-- R39 - Communication via Pipe nommée (connexion) -->
+  <!-- R38 - Communication via Pipe nommée (connexion) -->
   <rule id="410039" level="8">
     <field name="win.system.eventID">^18$</field>
     <description>Connexion à une pipe nommée détectée (échange inter-processus suspect)</description>
@@ -525,7 +518,7 @@
     <options>no_full_log</options>
   </rule>
 
-  <!-- R40 - Modification ou suppression de fichiers par un processus (Sysmon Event 23) -->
+  <!-- R39 - Modification ou suppression de fichiers par un processus (Sysmon Event 23) -->
   <rule id="410040" level="10">
     <field name="win.system.eventID">^23$</field>
     <description>Suppression de fichiers détectée (potentiel nettoyage de traces ou sabotage)</description>
@@ -538,7 +531,7 @@
     <options>no_full_log</options>
   </rule>
 
-  <!-- R41 - Contenu du presse-papiers accédé par un processus (Sysmon Event 24) -->
+  <!-- R40 - Contenu du presse-papiers accédé par un processus (Sysmon Event 24) -->
   <rule id="410041" level="10">
     <field name="win.system.eventID">^24$</field>
     <description>Accès au presse-papiers détecté - activité d'exfiltration potentielle</description>
@@ -550,7 +543,7 @@
     <options>no_full_log</options>
   </rule>
 
-  <!-- R42 - Manipulation d’image mémoire de processus (Sysmon Event 25) -->
+  <!-- R41 - Manipulation d’image mémoire de processus (Sysmon Event 25) -->
   <rule id="410042" level="12">
     <field name="win.system.eventID">^25$</field>
     <description>Altération de processus détectée - injection ou hollowing possible</description>
@@ -562,7 +555,7 @@
     <options>no_full_log</options>
   </rule>
 
-  <!-- R43 - Vidage des journaux de sécurité (event log cleared) -->
+  <!-- R42 - Vidage des journaux de sécurité (event log cleared) -->
   <rule id="410043" level="12">
     <field name="win.system.channel">^Security$</field>
     <description>Vidage des journaux de sécurité détecté</description>
@@ -574,7 +567,7 @@
     <options>no_full_log</options>
   </rule>
 
-  <!-- R44 - Tentative de Pass-the-Hash (logon type 9 + seclogo) -->
+  <!-- R43 - Tentative de Pass-the-Hash (logon type 9 + seclogo) -->
   <rule id="410044" level="12">
     <field name="win.eventdata.logonType">^9$</field>
     <field name="win.eventdata.logonProcessName">^seclogo$</field>
@@ -587,7 +580,7 @@
     <options>no_full_log</options>
   </rule>
 
-  <!-- R45 - Chargement d’un driver noyau (Sysmon Event 6) -->
+  <!-- R44 - Chargement d’un driver noyau (Sysmon Event 6) -->
   <rule id="410045" level="8">
     <field name="win.system.eventID">^6$</field>
     <description>Chargement d’un driver noyau détecté (potentiel rootkit)</description>
