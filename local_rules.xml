@@ -290,7 +290,7 @@
   <rule id="410020" level="12">
     <field name="win.system.eventID">^4624$</field>
     <field name="win.eventdata.SubjectUserName" type="pcre2">admin|backup|itadmin|svc.*</field>
-    <description>🚨 Connexion inhabituelle à partir de comptes sensibles ou dormants (MFA bypass possible)</description>
+    <description>Connexion inhabituelle à partir de comptes sensibles ou dormants (MFA bypass possible)</description>
     <group>windows,correlation,account_abuse</group>
     <mitre>
       <id>T1078</id>
