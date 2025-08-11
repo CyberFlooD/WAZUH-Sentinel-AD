@@ -47,12 +47,12 @@ Ce dépôt contient un ensemble de règles Wazuh avancées, spécialement conçu
 
 1. Copiez le fichier XML dans le répertoire des règles Wazuh :
 ```bash
-sudo cp AD_Ultimate_Rules.xml /var/ossec/etc/rules/
+sudo cp ad_ultimate_rules.xml /var/ossec/etc/rules/
 ```
 
 2. Ajoutez cette ligne dans `/var/ossec/etc/ossec.conf` :
 ```xml
-<rule_file>rules/AD_Ultimate_Rules.xml</rule_file>
+<rule_file>rules/ad_ultimate_rules.xml</rule_file>
 ```
 
 3. Redémarrez le manager :
